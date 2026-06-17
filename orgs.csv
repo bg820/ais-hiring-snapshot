@@ -1,0 +1,14 @@
+name,category,source,identifier,notes
+Center for AI Safety,research,lever,aisafety,
+Goodfire,research,greenhouse,goodfire,
+Apollo Research,research,lever,apolloresearch,
+Epoch AI,research,lever,epoch-ai,
+METR,research,lever,metr,
+UK AI Safety Institute,government,greenhouse,aisi,
+BlueDot Impact,field-building,ashby,bluedot,
+Eleos AI,research,ashby,eleos,
+Anthropic,frontier-lab,greenhouse,anthropic,excluded from headline metric; shown as comparison only
+Redwood Research,research,airtable,PENDING,Airtable shared view — identifier to be filled
+GovAI,governance,airtable,PENDING,Airtable shared view — identifier to be filled
+Apart Research,research,notion,PENDING,Notion database — identifier to be filled
+Palisade Research,research,notion,PENDING,Notion database — identifier to be filled

@@ -1,0 +1,62 @@
+name: Snapshot & deploy
+
+# Runs on every push to main, on a weekly schedule, and on-demand.
+# - Scheduled/manual runs pull a fresh snapshot, commit it, then rebuild + deploy.
+# - Push runs just rebuild + deploy (no new snapshot), so committing data can't loop.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 9 * * 1"   # Mondays 09:17 UTC — change this line to reschedule
+  workflow_dispatch:        # adds a "Run workflow" button in the Actions tab
+
+permissions:
+  contents: write   # to commit the weekly snapshot
+  pages: write      # to publish the site
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Collect fresh snapshot (scheduled/manual only)
+        if: github.event_name != 'push'
+        run: |
+          python collect.py
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/snapshots
+          git commit -m "Weekly snapshot $(date -u +%F) [skip ci]" || echo "no new data"
+          git push || echo "nothing to push"
+
+      - name: Build site
+        run: python build_site.py
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
