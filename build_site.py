@@ -216,6 +216,7 @@ def build():
                     "Most of them are structured programs (internships and fellowships) rather than standing staff jobs.")
 
     # ---- Findings ----
+    _JS[0] = False
     body = f"""
 <h1>The entry-level cliff in AI safety hiring</h1>
 <p class="lede">Read straight from each org's own hiring system, today's openings lean heavily
@@ -279,6 +280,7 @@ the <a href="trends.html">trends page</a> tracks these numbers as new snapshots 
         f"<tr><td>{r['date']}</td><td>{r['orgs']}</td><td>{r['concrete']}</td>"
         f"<td>{r['eoi']}</td><td>{r['entry_pct']:.0f}%</td><td>{r['senior_pct']:.0f}%</td></tr>"
         for r in rows)
+    _JS[0] = False
     trends = f"""
 <h1>Trends over time</h1>
 <p class="lede">Each weekly snapshot is saved, so the same measures can be tracked as the months
