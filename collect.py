@@ -4,7 +4,7 @@ Usage:  python collect.py
 
 Writes data/snapshots/snapshot_YYYY-MM-DD.csv and prints a per-org summary.
 Sources that are not yet wired up (identifier == PENDING) are skipped and
-reported, so the coverage roster stays honest.
+reported, so the coverage roster stays plain.
 """
 from __future__ import annotations
 import csv
@@ -34,7 +34,7 @@ def collect_one(org):
     if ident == "manual":
         return None, "via manual supplement"
     if ident == "PENDING" or src not in ats.COLLECTORS:
-        return None, f"pending ({src} — needs browser capture)"
+        return None, f"pending ({src}, needs browser capture)"
     try:
         rows = ats.COLLECTORS[src](ident)
         return rows, f"{len(rows)} roles"

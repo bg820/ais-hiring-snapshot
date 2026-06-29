@@ -4,7 +4,7 @@ Two independent signals, both published so anyone can audit them:
 
 1. seniority_from_title(): explicit seniority markers in the job title.
    Buckets: entry, senior, unspecified. We deliberately do NOT guess a
-   "mid" level from an unmarked title — an unmarked "Research Engineer"
+   "mid" level from an unmarked title, an unmarked "Research Engineer"
    tells us nothing reliable about the experience floor, so it stays
    "unspecified" rather than inflating either end.
 
@@ -45,11 +45,11 @@ _WORD_NUM = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
 
 # A "N years" / "N+ years" / "N-M years" / "two years" mention.
 _NUM_YEARS = re.compile(
-    r"(?<![\w.])(\d{1,2})\s*\+?\s*(?:(?:to|-|–|—)\s*\d{1,2}\s*\+?)?\s*years?\b", re.I)
+    r"(?<![\w.])(\d{1,2})\s*\+?\s*(?:(?:to|-|-|)\s*\d{1,2}\s*\+?)?\s*years?\b", re.I)
 _WORD_YEARS = re.compile(
     r"\b(one|two|three|four|five|six|seven|eight|nine|ten)\s+years?\b", re.I)
 
-# "Required experience: 5+ years ..." — the structured-field pattern several
+# "Required experience: 5+ years ...", the structured-field pattern several
 # ATS templates use; the number right after is the experience floor.
 _REQ_ANCHOR = re.compile(r"required experience\D{0,25}(\d{1,2})\s*\+?", re.I)
 
@@ -97,6 +97,19 @@ def min_years_experience(description: str):
     scan(_WORD_YEARS, lambda g: _WORD_NUM[g.lower()])
 
     return min(found) if found else None
+
+
+_EOI_MARKERS = ["expression of interest", "expressions of interest",
+                "general interest", "exceptional talent", "talent pool",
+                "talent network", "general application"]
+
+
+def is_expression_of_interest(title: str) -> bool:
+    """True for standing talent-pool / 'register your interest' listings, which
+    are invitations to apply rather than posted vacancies. Excluded from the
+    concrete-openings metrics, reported separately."""
+    t = (title or "").lower()
+    return any(m in t for m in _EOI_MARKERS)
 
 
 def is_entry_accessible(title: str, description: str) -> bool:

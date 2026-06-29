@@ -4,30 +4,30 @@ This puts the project on GitHub, publishes the site for free at
 `https://<your-username>.github.io/ais-hiring-snapshot/`, and sets it to
 **collect a fresh snapshot automatically every week**.
 
-You only do steps 1–4 once. After that it runs itself.
+You only do steps 1-4 once. After that it runs itself.
 
 ---
 
 ## What you need
 
-- A free GitHub account — sign up at <https://github.com> if you don't have one.
-- **GitHub Desktop** (the app, no command line needed) — <https://desktop.github.com>.
+- A free GitHub account, sign up at <https://github.com> if you don't have one.
+- **GitHub Desktop** (the app, no command line needed), <https://desktop.github.com>.
   Install it and sign in with your GitHub account.
 
 *(Prefer the command line? Skip to "Alternative: command line" at the bottom.)*
 
 ---
 
-## Step 1 — Create an empty repository on GitHub
+## Step 1: Create an empty repository on GitHub
 
 1. Go to <https://github.com/new>.
 2. **Repository name:** `ais-hiring-snapshot`.
 3. Set it to **Public** (required for free hosting, and the point is that the
    data and code are open).
-4. Do **not** add a README, .gitignore, or license — the folder already has them.
+4. Do **not** add a README, .gitignore, or license, the folder already has them.
 5. Click **Create repository**. Leave that page open.
 
-## Step 2 — Push this folder up with GitHub Desktop
+## Step 2: Push this folder up with GitHub Desktop
 
 1. Open GitHub Desktop → **File ▸ Add Local Repository**.
 2. Choose this folder: `ais-hiring-snapshot`.
@@ -38,18 +38,18 @@ You only do steps 1–4 once. After that it runs itself.
 
 Your files are now on GitHub.
 
-## Step 3 — Turn on the website
+## Step 3: Turn on the website
 
 1. On GitHub, open your repo → **Settings ▸ Pages** (left sidebar).
 2. Under **Build and deployment ▸ Source**, choose **GitHub Actions**.
-   (That's it — nothing else to fill in.)
+   (That's it, nothing else to fill in.)
 
-## Step 4 — Run it once
+## Step 4: Run it once
 
 1. Go to the **Actions** tab of your repo.
 2. If it asks, click to **enable workflows**.
 3. Click **Snapshot & deploy** → **Run workflow** → **Run workflow**.
-4. Wait ~1–2 minutes for the green check. Your site is now live at
+4. Wait ~1-2 minutes for the green check. Your site is now live at
    `https://<your-username>.github.io/ais-hiring-snapshot/`.
 
 Link to that URL from your personal site and you're done.
@@ -61,7 +61,7 @@ Link to that URL from your personal site and you're done.
 The workflow in `.github/workflows/snapshot-and-deploy.yml` runs **every Monday**,
 pulls a fresh snapshot, commits it to `data/snapshots/`, rebuilds the site, and
 redeploys. Over time those weekly snapshots accumulate into a history you can
-later chart as a trend — the path to the "live tracker" version.
+later chart as a trend, the path to the "live tracker" version.
 
 - **Change how often it runs:** edit the `cron:` line. `"17 9 * * 1"` means
   *Mondays at 09:17 UTC*. For example, daily would be `"17 9 * * *"`. (Helper:
