@@ -31,8 +31,10 @@ def load_orgs():
 def collect_one(org):
     src = org["source"].strip()
     ident = org["identifier"].strip()
+    if ident == "manual":
+        return None, "via manual supplement"
     if ident == "PENDING" or src not in ats.COLLECTORS:
-        return None, f"skipped ({src}, not wired up)"
+        return None, f"pending ({src} — needs browser capture)"
     try:
         rows = ats.COLLECTORS[src](ident)
         return rows, f"{len(rows)} roles"

@@ -169,6 +169,8 @@ def build():
     yrs_known = native[native.min_years.notna()]
     n_years = len(yrs_known)
     med_years = int(yrs_known.min_years.median()) if n_years else None
+    n_manual = int((native.collection_method == "manual").sum())
+    n_api = n - n_manual
     os.makedirs(SITE, exist_ok=True)
 
     # ---- index ----
@@ -176,13 +178,13 @@ def build():
 <h1>The entry-level cliff in AI safety hiring</h1>
 <p class="lede">Pulled straight from the orgs' own hiring systems, today's open roles
 skew sharply senior — early-career entry points are scarce.</p>
-<p class="meta">Snapshot {snap} · {n} open roles across {n_orgs} AI-safety organizations with public feeds ·
-frontier labs shown separately, not blended in.</p>
+<p class="meta">Snapshot {snap} · {n} open roles across {n_orgs} mission-driven AI-safety organizations
+({n_api} via public feed, {n_manual} captured by hand) · frontier labs shown separately, not blended in.</p>
 
 <div class="stat">
   <div><div class="n">{entry_share:.0f}%</div><div class="l">of open roles are accessible early-career</div></div>
   <div><div class="n">{senior_share:.0f}%</div><div class="l">carry an explicitly senior title</div></div>
-  <div><div class="n">{n_orgs}</div><div class="l">orgs with a machine-readable public feed</div></div>
+  <div><div class="n">{n_orgs}</div><div class="l">AI-safety orgs in the dataset</div></div>
 </div>
 
 <div class="callout"><b>How to read this.</b> "Entry-accessible" means the title carries an
@@ -232,7 +234,11 @@ feeds (Greenhouse, Lever, Ashby) where available, and a hand-maintained suppleme
 boards have no machine-readable feed (Airtable / Notion / custom). Every role is tagged with its
 <code>collection_method</code> (<span class="tag api">api</span> or
 <span class="tag manual">manual</span>) so the two are always separable. The current snapshot
-({snap}) holds {n} AIS-native roles, all collected via API; the manual supplement is being added next.</p>
+({snap}) holds {n} AIS-native roles — {n_api} pulled automatically from public feeds and
+{n_manual} captured by hand from four orgs whose boards are JavaScript-rendered: GovAI and Apart
+server-render enough to parse directly, while Redwood and Palisade render entirely client-side and
+were read with a headless browser. Every manual row is tagged so it stays separable from the
+automated feed, and the <a href="coverage.html">roster</a> shows each org's method.</p>
 
 <h2>How roles are classified</h2>
 <p>Two transparent, rule-based signals, both auditable in <code>classify.py</code>:</p>
@@ -275,7 +281,9 @@ imperfect; the rules are published so you can disagree precisely.</li>
             if o["category"] == "frontier-lab":
                 tag = '<span class="tag out">comparison only</span>'
             elif ident == "PENDING":
-                tag = '<span class="tag manual">pending (manual)</span>'
+                tag = '<span class="tag manual">pending (browser capture)</span>'
+            elif ident == "manual" or src in ("airtable", "notion"):
+                tag = '<span class="tag manual">included (manual)</span>'
             else:
                 tag = '<span class="tag api">included (api)</span>'
             cnt = int((native.org == o["name"]).sum()) if ident != "PENDING" else ""
