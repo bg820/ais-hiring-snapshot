@@ -196,8 +196,23 @@ def build():
 
     entry_roles = concrete[concrete.entry_ok]
     entry_orgs = entry_roles.org.nunique()
-    prog = entry_roles.title.str.contains("fellow|intern|resident|scholar|apprentice", case=False)
+    prog = entry_roles.title.str.contains(
+        "fellow|intern|resident|scholar|apprentice|graduate", case=False)
+    n_prog = int(prog.sum())
     all_programs = len(entry_roles) > 0 and bool(prog.all())
+
+    lab_entry_share = labs_concrete.entry_ok.mean() * 100 if len(labs_concrete) else 0
+
+    # Name the senior markers that actually carry the count in this snapshot,
+    # rather than a fixed list that may describe no real posting.
+    senior_titles = concrete[concrete.seniority == "senior"].title
+    marker_labels = [("lead", "Lead"), ("manager", "Manager"), ("head of", "Head of"),
+                     ("senior", "Senior"), ("chief", "Chief"), ("director", "Director"),
+                     ("principal", "Principal"), ("expert", "Expert")]
+    present = [(lbl, int(senior_titles.str.contains(kw, case=False).sum()))
+               for kw, lbl in marker_labels]
+    present = sorted([p for p in present if p[1]], key=lambda p: -p[1])[:3]
+    senior_examples = ", ".join(lbl for lbl, _ in present)
 
     yrs = concrete[concrete.min_years.notna()]
     n_years = len(yrs)
@@ -210,10 +225,15 @@ def build():
 
     # entry-role list (kept accurate by reading from the data, not hard-coded)
     role_items = "".join(f"<li><b>{r.org}</b>: {r.title}</li>" for _, r in entry_roles.iterrows())
-    program_line = ("Every one of them is a structured program rather than a standing job. "
-                    "In AI safety the way in is a program, not a job posting."
-                    if all_programs else
-                    "Most of them are structured programs (internships and fellowships) rather than standing staff jobs.")
+    if all_programs:
+        program_line = ("Every one of them is a structured program rather than a standing job. "
+                        "In AI safety the way in is a program, not a job posting.")
+    elif n_prog:
+        program_line = (f"{n_prog} of the {len(entry_roles)} are structured programs "
+                        "(internships, fellowships, scholar positions) rather than standing "
+                        "staff jobs, so even the narrow way in is mostly a program.")
+    else:
+        program_line = "None of them are structured programs; all are standing staff jobs."
 
     # ---- Findings ----
     _JS[0] = False
@@ -232,14 +252,18 @@ labs are reported separately, not mixed in.</p>
 </div>
 
 <div class="callout"><b>How to read this.</b> A role counts as open to early-career applicants if
-the title says intern, fellow, junior, or new grad, or the description asks for two years of
-experience or less. It counts vacancies that are posted in public. A lot of senior and
-network hiring never gets advertised, so if anything this view understates how hard the early
-years are.</div>
+its title carries an entry marker (intern, internship, junior, new grad, graduate, apprentice,
+scholar, or a fellowship program), or its description asks for two years of experience or less
+and the title carries no senior marker. Note that a plain "Fellow" is not treated as entry:
+at a think tank that is an experienced staff title, not a way in. It counts vacancies that are
+posted in public. A lot of senior and network hiring never gets advertised, so if anything this
+view understates how hard the early years are.</div>
 
 <div class="card">{chart_seniority(concrete)}</div>
-<p>Senior titles such as Chief of Staff, Director, Principal, and Head of outnumber entry-marked
-ones by a wide margin. Most of the rest give no clear seniority signal in the title.</p>
+<p>Senior-marked titles outnumber entry-marked ones by a wide margin. The senior bucket is
+carried by middle-of-the-org titles rather than C-suite ones, most often {senior_examples},
+which is worth remembering before reading it as a field full of executive openings. Most of the
+rest give no clear seniority signal in the title at all.</p>
 
 <div class="card">{chart_by_org(concrete)}</div>
 <p>The pattern is uneven across orgs, so be careful reading the totals: one organization,
@@ -252,10 +276,12 @@ on the entry side: only {entry_orgs} of the {n_orgs} orgs post any early-career 
 <ul class="roles">{role_items}</ul>
 <p>{program_line}</p>
 
-<h2>Frontier labs look similar</h2>
+<h2>Frontier labs are no easier</h2>
 <div class="card">{chart_compare(concrete, labs_concrete)}</div>
-<p>Anthropic's public board, kept separate because most of its roles are not safety work, shows a
-similar early-career share. So the cliff is not just an effect of small orgs.</p>
+<p>Anthropic's public board, kept separate because most of its roles are not safety work, runs at
+{lab_entry_share:.0f}% early-career against {entry_share:.0f}% here, across a far larger board
+({len(labs_concrete)} vacancies). Both are low, so the cliff is not an artifact of small orgs
+with few openings, though note the lab share is the lower of the two.</p>
 
 <p><small>On stated experience: where a posting names a minimum, the floor sits around
 {med_years} years. Only a few orgs name a number at all, and most of those come from a single org
@@ -280,23 +306,39 @@ the <a href="trends.html">trends page</a> tracks these numbers as new snapshots 
         f"<tr><td>{r['date']}</td><td>{r['orgs']}</td><td>{r['concrete']}</td>"
         f"<td>{r['eoi']}</td><td>{r['entry_pct']:.0f}%</td><td>{r['senior_pct']:.0f}%</td></tr>"
         for r in rows)
+    # The first snapshot at full coverage: before this the org list was still
+    # growing, so earlier points are not comparable with later ones.
+    max_orgs = max(r["orgs"] for r in rows)
+    settled = next(r["date"] for r in rows if r["orgs"] == max_orgs)
+    gaps = ", ".join(r["date"] for r in rows)
+
     _JS[0] = False
     trends = f"""
 <h1>Trends over time</h1>
-<p class="lede">Each weekly snapshot is saved, so the same measures can be tracked as the months
+<p class="lede">Each snapshot is dated and kept, so the same measures can be tracked as the months
 go by.</p>
-<p>The job runs every week and commits a fresh dated snapshot. Right now there are
-{len(rows)} of them, so the lines below are still short. They will fill in on their own.</p>
+<p>A scheduled job collects a fresh snapshot every Monday and commits it, so the archive builds
+itself. There are {len(rows)} so far ({gaps}).</p>
 
 <div class="card">{chart_trends(rows)}</div>
 
 <table><thead><tr><th>Snapshot</th><th>Orgs</th><th>Vacancies</th><th>EOIs set aside</th>
 <th>Early-career</th><th>Senior</th></tr></thead><tbody>{trows}</tbody></table>
 
-<div class="callout"><b>Reading the early points.</b> Coverage grew from 8 orgs to {n_orgs} as more
-orgs were added, so the first snapshots are not a like-for-like comparison with the later ones.
-The series becomes a fair trend once the org list settles, from the {snap} snapshot on. Treat
-anything before that as a baseline rather than a movement.</div>
+<div class="callout"><b>Reading these points.</b> Three caveats. Coverage grew from
+{rows[0]['orgs']} orgs to {max_orgs} as more orgs were added, so it becomes a like-for-like
+comparison only from the {settled} snapshot on. The classification rules were revised on
+2026-07-26 and every snapshot above is re-scored with the current rules, so the columns agree
+with each other but not with figures this site showed before that date. And the orgs collected
+by hand only change when someone re-captures them, so their rows carry forward unchanged between
+captures; a flat line for those orgs means no fresh reading, not necessarily no change.</div>
+
+<div class="callout"><b>The 2026-07-26 step is a correction, not a movement.</b> Early-career
+falls from 8% to 5% at the last point, and that is almost entirely one thing: three GovAI winter
+fellowships had closed, but because GovAI is captured by hand they kept being carried forward
+into the scheduled snapshots until the supplement was re-read on 2026-07-26. The underlying
+change happened at some point across those weeks, not on that day. Read the step as the archive
+catching up with reality.</div>
 """
     write("trends.html", "Trends over time", trends, "trends.html")
 
@@ -305,12 +347,23 @@ anything before that as a baseline rather than a movement.</div>
 <h1>Method and limits</h1>
 <h2>Where the data comes from</h2>
 <p>Roles come straight from each organization's hiring system: public applicant-tracking feeds
-(Greenhouse, Lever, Ashby) where they exist, and a hand-kept supplement for orgs whose boards are
-built in JavaScript. Every role is tagged with how it was collected
+(Greenhouse, Lever, Ashby) where they exist, and a hand-kept supplement for orgs that publish no
+feed we can read. Every role is tagged with how it was collected
 (<span class="tag api">api</span> or <span class="tag manual">manual</span>), so the two never
 blur together. This snapshot ({snap}) holds {n} concrete vacancies, {n_api} from feeds and
-{n_manual} captured by hand. Four orgs with no machine-readable feed (GovAI, Apart, Redwood,
-Palisade) were read off their pages, the last two with a browser that runs the page's scripts.</p>
+{n_manual} captured by hand. Four orgs with no usable machine-readable feed (GovAI, Apart,
+Redwood, Palisade) were read off their careers pages in a browser that runs the page's scripts.</p>
+<p>Hiring systems move, and a feed that has gone quiet looks exactly like an org that has stopped
+hiring, so each collection is checked against the previous one for any org that drops to zero.
+That check earned its keep on 2026-07-26: the Center for AI Safety's Lever feed still answered
+normally but had gone empty, because the org had moved to Greenhouse some time after the
+2026-07-20 snapshot, which still read seven roles from Lever. Their six open roles would
+otherwise have been recorded as none. Palisade also moved, from a Notion page to a Gusto board,
+and is still read by hand.</p>
+<p>The hand-kept rows are only as fresh as the last capture. Between captures they carry forward
+unchanged into each scheduled snapshot, so for those four orgs a value that does not move may
+mean nobody has looked recently rather than that nothing has changed. The manual supplement was
+last re-captured on {snap}.</p>
 
 <h2>Expressions of interest are set aside</h2>
 <p>Some listings are standing "expression of interest" or "general interest" invitations rather
@@ -320,16 +373,26 @@ left out of the vacancy counts, since they are a way to register rather than a j
 <h2>How roles are sorted</h2>
 <p>Two plain rules, both readable in <code>classify.py</code>:</p>
 <ul>
-<li><b>Title seniority.</b> Clear markers sort titles into <i>entry</i> (intern, fellow, junior,
-new grad, graduate, apprentice), <i>senior</i> (senior, staff, principal, lead, head, director,
-chief, manager, founding), or <i>unspecified</i>. An unmarked "Research Engineer" stays
-unspecified rather than getting a guessed level.</li>
+<li><b>Title seniority.</b> Clear markers sort titles into <i>entry</i> (intern, internship, junior,
+new grad, graduate, apprentice, scholar, and fellowship programs), <i>senior</i> (senior, staff,
+principal, lead, head, director, chief, manager, expert, founding), or <i>unspecified</i>. An
+unmarked "Research Engineer" stays unspecified rather than getting a guessed level.</li>
+<li><b>Two words that needed care.</b> "Fellow" splits in two: a <i>fellowship</i> or a
+season-prefixed fellow is a structured program and counts as entry, but a bare "Research Fellow"
+is a think-tank staff title asking for substantial experience and does not. And "Member of
+Technical Staff", the standard unleveled title at AI labs, is exempted from the "staff" marker,
+which is meant for the genuinely senior Staff Engineer rung.</li>
 <li><b>Minimum years.</b> The smallest stated "N years" figure in the description, used as a floor.
-The parser anchors on structured "required experience" fields and on year-mentions that sit next
-to the word experience, and skips the non-experience uses of "years" (visa residency, post-job
-bans, "in the next N years"). Only {n_years} of {n} roles state a number, so it is a cross-check;
-the title remains the main signal.</li>
+The parser anchors on structured "required experience" fields and on year-mentions sitting near a
+cue that makes them a requirement (experience, track record, background). It skips non-experience
+uses of "years" (visa residency, post-job bans, contract lengths, "in the next N years") and
+sub-clauses that narrow a requirement already stated, since "5+ years ... with at least 2 years
+leading a team" has a floor of five, not two. Where several figures compete for one cue, the
+nearest wins, so a later bullet cannot borrow an earlier one's. Only {n_years} of {n} roles state
+a number, so it is a cross-check; the title remains the main signal.</li>
 </ul>
+<p>These rules have checks in <code>test_classify.py</code>, each one a real posting phrasing, so
+a future change cannot quietly undo them. Run <code>python test_classify.py</code>.</p>
 
 <h2>What to keep in mind</h2>
 <ul>
@@ -347,7 +410,9 @@ rules are written down so anyone can disagree with a specific case.</li>
     write("methodology.html", "Method and limits", meth, "methodology.html")
 
     # ---- Coverage ----
-    counts = native_all.org.value_counts()
+    # Count across the whole snapshot, not just native orgs, so the comparison
+    # board does not show a misleading zero.
+    counts = df.org.value_counts()
     rows_html = ""
     with open(os.path.join(HERE, "orgs.csv"), newline="", encoding="utf-8") as f:
         for o in csv.DictReader(f):

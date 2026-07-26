@@ -1,5 +1,5 @@
 name,category,source,identifier,notes
-Center for AI Safety,research,lever,aisafety,
+Center for AI Safety,research,greenhouse,centerforartificialintelligencesafetyinc,moved Lever -> Greenhouse before 2026-07-26; old Lever slug still resolves but returns an empty list
 Goodfire,research,greenhouse,goodfire,
 Apollo Research,research,lever,apolloresearch,
 Epoch AI,research,lever,epoch-ai,
@@ -8,7 +8,7 @@ UK AI Safety Institute,government,greenhouse,aisi,
 BlueDot Impact,field-building,ashby,bluedot,
 Eleos AI,research,ashby,eleos,
 Anthropic,frontier-lab,greenhouse,anthropic,excluded from headline metric; shown as comparison only
-GovAI,governance,airtable,manual,captured manually from careers page (JS-rendered listing)
+GovAI,governance,custom,manual,captured manually from the opportunities page on governance.ai (Airtable only handles the application forms)
 Apart Research,research,notion,manual,captured manually from careers page (Notion-backed)
-Redwood Research,research,custom,manual,captured via headless browser (single technical-staff role)
-Palisade Research,research,notion,manual,captured via headless browser (expression of interest)
+Redwood Research,research,custom,manual,captured manually from careers page (single technical-staff role)
+Palisade Research,research,gusto,manual,captured manually from Gusto job board (moved off Notion between 2026-06-29 and 2026-07-26)

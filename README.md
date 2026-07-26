@@ -17,6 +17,7 @@ source and whether it made the cut, so the coverage is easy to audit.
 - `collectors/`: one collector per feed type (Greenhouse, Lever, Ashby).
 - `manual_postings.csv`: hand-kept rows for orgs with no public feed.
 - `classify.py`: the rule-based seniority and years-of-experience tagging.
+- `test_classify.py`: checks on those rules, each case a real posting phrasing.
 - `collect.py`: pulls a dated snapshot into `data/snapshots/`.
 - `build_site.py`: rebuilds the static site in `site/`.
 - `data/snapshots/`: the committed CSV snapshots that make up the archive.
@@ -25,9 +26,16 @@ source and whether it made the cut, so the coverage is easy to audit.
 
 ```bash
 pip install -r requirements.txt
-python collect.py      # pull a dated snapshot into data/snapshots/
-python build_site.py   # rebuild the static site into site/
+python collect.py        # pull a dated snapshot into data/snapshots/
+python test_classify.py  # check the classification rules still hold
+python build_site.py     # rebuild the static site into site/
 ```
+
+After collecting, compare the per-org counts against the previous snapshot. A
+hiring system that has been switched off returns an empty list rather than an
+error, so an org that drops to zero usually means a moved feed, not a hiring
+freeze. That is how the Center for AI Safety's move from Lever to Greenhouse
+was caught on 2026-07-26.
 
 ## Publish it
 
