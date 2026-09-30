@@ -42,6 +42,9 @@ jobs:
           git commit -m "Weekly snapshot $(date -u +%F) [skip ci]" || echo "no new data"
           git push || echo "nothing to push"
 
+      - name: Check classification rules
+        run: python test_classify.py
+
       - name: Build site
         run: python build_site.py
 

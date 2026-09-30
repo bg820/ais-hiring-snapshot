@@ -1,6 +1,6 @@
 """Transparent, rule-based classification for the entry-level analysis.
 
-Two independent signals, both published so anyone can audit them:
+Three independent signals, all published so anyone can audit them:
 
 1. seniority_from_title(): explicit seniority markers in the job title.
    Buckets: entry, senior, unspecified. We deliberately do NOT guess a
@@ -8,35 +8,64 @@ Two independent signals, both published so anyone can audit them:
    tells us nothing reliable about the experience floor, so it stays
    "unspecified" rather than inflating either end.
 
-2. min_years_experience(): the smallest "N+ years" figure mentioned in the
-   description, as a proxy for the experience floor. Returns None when the
-   text states no explicit requirement.
+2. min_years_experience(): the experience floor a posting states, taken as
+   the LARGEST credible "N+ years" requirement in the description. Returns
+   None when the text states no explicit requirement. (Until 2026-09-30 this
+   took the smallest figure, which read "10+ years in engineering ... 2+ years
+   of people management" as a two-year floor. Listed requirements are
+   normally all required at once, so the binding one is the largest.)
 
-The headline "entry-level cliff" metric combines these: a role counts as
-entry-accessible if the title carries an entry marker OR the description's
-minimum stated experience is <= 2 years.
+3. function_of(): what kind of work the role is (research, engineering,
+   operations, ...), from the title with the ATS department as a fallback.
+
+The headline "entry-level cliff" metric combines the first two: a role counts
+as entry-accessible if the title carries an entry marker OR the description's
+minimum stated experience is <= 2 years (and the title carries no senior
+marker).
+
+Every marker is matched on word boundaries. Plain substring matching read
+"International" as "intern", which put "Director, US International Tax" in
+the early-career bucket; that bug inflated the frontier-lab comparison until
+2026-09-30.
 """
 from __future__ import annotations
 import re
 
+
+def _words(*phrases):
+    """One regex matching any of the phrases as whole words."""
+    alts = "|".join(re.escape(p).replace(r"\ ", r"\s+") for p in phrases)
+    return re.compile(rf"(?<![a-z])(?:{alts})(?![a-z])", re.I)
+
+
 ENTRY_MARKERS = [
-    "intern", "internship", "fellowship", "resident", "residency",
-    "junior", "jr.", "entry level", "entry-level", "new grad", "graduate",
-    "trainee", "apprentice", "early career", "scholar",
+    "intern", "interns", "internship", "fellowship", "resident", "residency",
+    "junior", "jr", "entry level", "entry-level", "new grad", "graduate",
+    "trainee", "apprentice", "early career", "early-career", "scholar",
+    "all levels", "any level", "all experience levels",
 ]
 SENIOR_MARKERS = [
-    "senior", "sr.", "staff", "principal", "lead ", "lead,", "head of",
-    "director", "vp ", "vice president", "chief", "founding", "manager",
-    "expert", "distinguished",
+    "senior", "sr", "staff", "staff+", "principal", "lead", "head of",
+    "director", "vp", "vice president", "chief", "founding",
+    "engineering manager", "expert", "distinguished", "partner",
 ]
+_ENTRY = _words(*ENTRY_MARKERS)
+_SENIOR = _words(*SENIOR_MARKERS)
+
+# "Associate" is the junior rung at nonprofits and think tanks ("Associate,
+# Operations", "Hiring Associate", "Research Management Associate"), but it is
+# the opposite in "Associate Director" or "Associate Professor".
+_ASSOCIATE = re.compile(
+    r"(?<![a-z])associate(?![a-z])(?!\s+(director|professor|partner|principal"
+    r"|general counsel|vice president|dean))", re.I)
 
 # "Fellow" is two different jobs sharing one word, so it cannot be a plain
 # marker. A *fellowship*, or a season-prefixed fellow ("Summer Fellow"), is a
 # structured time-bound program and a real way in. A bare "Research Fellow" is
 # a think-tank staff title that normally sits at or above an ordinary research
-# hire: GovAI's own posting asks for "substantial research experience" and
-# points less-experienced applicants at Research Scholar instead. So
-# "fellowship" stays in ENTRY_MARKERS above, and bare "fellow" does not.
+# hire: GovAI's own posting describes its Research Fellows as "experienced
+# researchers" who "mentor early-career researchers". So "fellowship" stays in
+# ENTRY_MARKERS above, and bare "fellow" does not.
 _PROGRAM_FELLOW = re.compile(
     r"\bfellows?\s+program\b"
     r"|\b(summer|winter|spring|fall|autumn|visiting|incoming)\s+fellows?\b", re.I)
@@ -45,18 +74,35 @@ _PROGRAM_FELLOW = re.compile(
 # title at AI labs, used for everyone from a first hire to a veteran. The "staff"
 # marker is meant to catch the "Staff Engineer" rung, which is genuinely senior,
 # so MTS titles are exempted rather than being read as seniority signals.
+# "Chief of Staff" is exempted from nothing: "chief" catches it on its own.
 _MTS = re.compile(r"member of (the )?technical staff", re.I)
+
+# A title that names two rungs, "Researcher / Senior Researcher", "Recruiter /
+# Senior Recruiter", "(Senior) AI Governance Researcher", "Architect or Senior
+# Architect", is explicitly open below senior. Reading the word "senior" in it
+# as a senior-only role was a bug. Such titles are left unspecified: they are
+# not senior-only, but they do not promise an early-career way in either.
+_RANGE = re.compile(
+    r"\(senior\)|\bsenior\s*/|/\s*senior\b|\bor\s+senior\b|\bsenior\s+or\b", re.I)
+
+# Bare "Manager" is left out of the senior list on purpose. In a function title
+# ("Product Manager", "Office Manager", "Social Media & Community Manager",
+# "Research Manager") it names the job, not the rung, and several of these are
+# posted with an associate-level alternative. Manager titles that do name a
+# rung, "Senior Manager", "Engineering Manager", "Head of ...", still count.
 
 
 def seniority_from_title(title: str) -> str:
-    t = f" {title.lower()} "
-    if any(m in t for m in ENTRY_MARKERS) or _PROGRAM_FELLOW.search(t):
+    t = f" {(title or '').lower()} "
+    if _ENTRY.search(t) or _PROGRAM_FELLOW.search(t) or _ASSOCIATE.search(t):
         return "entry"
+    if _RANGE.search(t):
+        return "unspecified"
     if _MTS.search(t):
         # Strip the exempted phrase, then look for any other seniority marker,
         # so "Senior Member of Technical Staff" still reads as senior.
         t = _MTS.sub(" ", t)
-    if any(m in t for m in SENIOR_MARKERS):
+    if _SENIOR.search(t):
         return "senior"
     return "unspecified"
 
@@ -182,7 +228,7 @@ def _owns_a_cue(span, eligible, cues):
 
 
 def min_years_experience(description: str):
-    """Smallest credibly-stated minimum years of experience, or None.
+    """The stated experience floor in years (largest credible figure), or None.
 
     Combines three signals (structured 'Required experience' field, numeric
     'N years' near an experience cue, and word-number 'two years'), and rejects
@@ -205,12 +251,14 @@ def min_years_experience(description: str):
         if _owns_a_cue(span, eligible, cues):
             found.append(span[2])
 
-    return min(found) if found else None
+    return max(found) if found else None
 
 
 _EOI_MARKERS = ["expression of interest", "expressions of interest",
                 "general interest", "exceptional talent", "talent pool",
-                "talent network", "general application"]
+                "talent network", "talent community", "general application",
+                "open application", "future opportunities", "shoot your shot",
+                "the role you are perfect for", "don't see", "(eoi)"]
 
 
 def is_expression_of_interest(title: str) -> bool:
@@ -221,14 +269,58 @@ def is_expression_of_interest(title: str) -> bool:
     return any(m in t for m in _EOI_MARKERS)
 
 
+# Plain statements, in the body of a posting, that the role is open below the
+# senior level: "We are open to hires at junior, senior, staff and principal
+# levels", "We don't require a formal background or industry experience and
+# welcome self-taught candidates", "we will consider making an offer at the
+# Associate level first". The 2026-09-30 hand audit found that most postings
+# open to early-career applicants say so here rather than in the title.
+#
+# These phrases were written after reading that snapshot, so the rules agree
+# with it partly by construction. The honest test is how they do on postings
+# they were not written from.
+#
+# The phrases are narrow on purpose. "Mentor junior team members", "support
+# early-career researchers", "places early-career talent" and "communicate
+# with audiences at all levels of seniority" describe the job, not who can
+# apply, and must not match.
+_OPEN_DOOR = re.compile("|".join([
+    r"open to (hires|candidates|applicants) (at|across|of|from) (all|junior|a range|a variety|any)",
+    r"\b(at|across) all (experience|seniority) levels",
+    r"\b(hire|hires|hiring|candidates|applicants|people)\s+(at|across|of|from)\s+all\s+levels",
+    r"\bfrom junior (through|to)\b",
+    r"\bjunior, (mid|senior)",
+    r"\bopen on seniority\b",
+    r"range of (levels of experience|experience levels|seniority)",
+    r"variety of (seniority|experience) levels",
+    r"(don.t|do not) require (a )?formal background",
+    r"welcome self-taught",
+    r"without (industrial|industry) experience",
+    r"\bnew to (ml|machine learning)\b",
+    r"offer at the associate level",
+    r"associate (position|role|level) first",
+    r"\bearly[- ]career roles?\b",
+    r"no (prior |previous )?experience (is )?(required|necessary|needed)",
+    r"\brecent graduates?\b",
+]), re.I)
+
+
+def says_open_below_senior(description: str) -> bool:
+    """True if the posting's text plainly invites below-senior applicants."""
+    return bool(description) and bool(_OPEN_DOOR.search(_ENTITY.sub(" ", description)))
+
+
 def is_entry_accessible(title: str, description: str) -> bool:
     """True if the role is plausibly within reach early in a career.
 
     An entry marker in the title settles it. Otherwise a stated floor of two
-    years or less does, but only when the title carries no senior marker: an
-    "Evals Infrastructure Tech Lead / Manager" asking for "1+ years managing
-    engineers" is stating the smallest piece of a leadership job, not opening
-    a door for a beginner, and the title is the more reliable signal.
+    years or less does, or a plain statement in the text that junior or
+    self-taught applicants are welcome (unless the text also states a floor
+    above two years), but only when the title carries no
+    senior marker: an "Evals Infrastructure Tech Lead / Manager" asking for
+    "1+ years managing engineers" is stating the smallest piece of a
+    leadership job, not opening a door for a beginner, and the title is the
+    more reliable signal.
     """
     seniority = seniority_from_title(title)
     if seniority == "entry":
@@ -236,4 +328,82 @@ def is_entry_accessible(title: str, description: str) -> bool:
     if seniority == "senior":
         return False
     y = min_years_experience(description)
-    return y is not None and y <= 2
+    if y is not None and y > 2:
+        # A stated floor above two years outranks a general welcome.
+        return False
+    return says_open_below_senior(description) or y is not None
+
+
+# ---------- function ----------
+# Ordered: the first bucket whose pattern matches the title wins, so the more
+# specific buckets come first ("Research Manager" is programme work, not
+# research; "Product Security Engineer" is security, not product). The ATS
+# department is consulted only when the title matches nothing.
+FUNCTIONS = [
+    ("Programs & field-building", _words(
+        "program lead", "program manager", "programme manager", "programs", "fellowship",
+        "research manager", "research management", "talent program", "workshops",
+        "groups", "special projects", "fellows program", "talent operations",
+        "talent ops", "field-building", "course")),
+    ("Policy & governance", _words(
+        "policy", "governance", "regulatory", "national security", "congressional",
+        "government affairs", "public affairs", "legislative")),
+    ("Go-to-market", _words(
+        "account executive", "sales", "sdr", "business development", "deal desk",
+        "demand generation", "marketing", "growth", "partnerships", "customer",
+        "solutions architect", "engagement manager", "vertical lead", "vertical ai lead",
+        "go-to-market", "gtm", "revenue", "pre-sales", "slinger", "order-to-cash",
+        "salesforce", "applied ai")),
+    ("Operations", _words(
+        "operations", "ops", "finance", "financial", "accountant", "accounting",
+        "tax", "people", "recruiter", "recruiting", "hiring", "talent", "chief of staff",
+        "executive assistant", "office", "counsel", "legal", "compliance", "payroll",
+        "hr", "workplace", "events", "event", "admin", "procurement",
+        "controller", "treasury", "facilities", "entrepreneur-in-residence",
+        "project manager")),
+    ("Comms & design", _words(
+        "communications", "comms", "writer", "editor", "video", "design", "designer",
+        "social media", "community", "brand", "content", "producer", "pr",
+        "journalist", "illustrator")),
+    ("Security & IT", _words(
+        "security", "it", "cyber", "system administrator", "sysadmin", "ciso",
+        "devops", "sre", "site reliability", "safeguards", "threat intel",
+        "trust & safety")),
+    ("Research", _words(
+        "research", "researcher", "scientist", "member of technical staff",
+        "evals", "evaluation", "evaluations", "red team", "interpretability",
+        "alignment", "task development", "benchmark", "forensics", "mathematical")),
+    ("Engineering & product", _words(
+        "engineer", "engineering", "developer", "software", "platform",
+        "infrastructure", "data", "machine learning", "ml", "product", "compute",
+        "technical", "technician", "architect", "full-stack", "backend", "frontend")),
+]
+
+# Titles that match two buckets are settled by the most specific cue: a
+# "Cyber Researcher" or "AI Security Researcher" is research on security, and
+# a "Security Engineer" is security work. These cues pull a title into
+# Research before the Security & IT check runs.
+_RESEARCH_FIRST = _words("researcher", "research scientist", "research engineer",
+                         "red team", "research lead")
+# Likewise a "GTM Recruiter" recruits (Operations) and a "Security Operations
+# Lead" or "System Administrator" runs security and IT.
+_OPS_FIRST = _words("recruiter", "recruiting", "counsel")
+_SECURITY_FIRST = _words("security operations", "system administrator")
+
+
+def function_of(title: str, department: str = "") -> str:
+    t = title or ""
+    if _SECURITY_FIRST.search(t):
+        return "Security & IT"
+    if _OPS_FIRST.search(t):
+        return "Operations"
+    if _RESEARCH_FIRST.search(t) and not FUNCTIONS[0][1].search(t) \
+            and not FUNCTIONS[1][1].search(t):
+        return "Research"
+    for name, rgx in FUNCTIONS:
+        if rgx.search(t):
+            return name
+    for name, rgx in FUNCTIONS:
+        if department and rgx.search(department):
+            return name
+    return "Other"

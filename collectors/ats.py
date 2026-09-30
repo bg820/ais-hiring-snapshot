@@ -62,7 +62,7 @@ def lever(slug: str) -> list[dict]:
             "department": (cats.get("team") or cats.get("department") or "").strip(),
             "url": j.get("hostedUrl", ""),
             "posted_at": posted,
-            "description": (j.get("descriptionPlain") or "").strip(),
+            "description": _lever_text(j),
         })
     return out
 
@@ -83,6 +83,22 @@ def ashby(slug: str) -> list[dict]:
             "description": (j.get("descriptionPlain") or "").strip(),
         })
     return out
+
+
+def _lever_text(j: dict) -> str:
+    """The full Lever posting as plain text.
+
+    descriptionPlain is only the opening blurb. The requirements usually sit
+    in `lists` ("What we're looking for", as HTML) and `additionalPlain`, so
+    reading descriptionPlain alone left the experience parser blind for every
+    Lever org (METR, Epoch, Apollo, FAR) until 2026-09-30.
+    """
+    parts = [j.get("descriptionPlain") or ""]
+    for block in j.get("lists") or []:
+        parts.append(block.get("text") or "")
+        parts.append(_strip_html(block.get("content") or ""))
+    parts.append(j.get("additionalPlain") or "")
+    return " ".join(p.strip() for p in parts if p and p.strip())
 
 
 def _strip_html(s: str) -> str:

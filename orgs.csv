@@ -1,14 +1,18 @@
-name,category,source,identifier,notes
-Center for AI Safety,research,greenhouse,centerforartificialintelligencesafetyinc,moved Lever -> Greenhouse before 2026-07-26; old Lever slug still resolves but returns an empty list
-Goodfire,research,greenhouse,goodfire,
-Apollo Research,research,lever,apolloresearch,
-Epoch AI,research,lever,epoch-ai,
-METR,research,lever,metr,
-UK AI Safety Institute,government,greenhouse,aisi,
-BlueDot Impact,field-building,ashby,bluedot,
-Eleos AI,research,ashby,eleos,
-Anthropic,frontier-lab,greenhouse,anthropic,excluded from headline metric; shown as comparison only
-GovAI,governance,custom,manual,captured manually from the opportunities page on governance.ai (Airtable only handles the application forms)
-Apart Research,research,notion,manual,captured manually from careers page (Notion-backed)
-Redwood Research,research,custom,manual,captured manually from careers page (single technical-staff role)
-Palisade Research,research,gusto,manual,captured manually from Gusto job board (moved off Notion between 2026-06-29 and 2026-07-26)
+name,category,org_type,source,identifier,notes
+Center for AI Safety,research,nonprofit,greenhouse,centerforartificialintelligencesafetyinc,moved Lever -> Greenhouse before 2026-07-26; old Lever slug still resolves but returns an empty list
+CAIS Action Fund,governance,nonprofit,greenhouse,caisactionfund,added 2026-09-30; CAIS's 501(c)(4) policy arm
+FAR.AI,research,nonprofit,ashby,far.ai,added 2026-09-30; the plan's 2026-06 check found this feed disabled; it now answers
+FAR.AI,research,nonprofit,lever,far-ai,added 2026-09-30; second board carrying senior engineering hires
+LawZero,research,nonprofit,greenhouse,lawzero,added 2026-09-30; Yoshua Bengio's safe-by-design lab
+METR,research,nonprofit,lever,metr,
+Epoch AI,research,nonprofit,lever,epoch-ai,
+Eleos AI,research,nonprofit,ashby,eleos,
+AVERI,research,nonprofit,ashby,averi,added 2026-09-30; AI Verification and Evaluation Research Institute
+UK AI Security Institute,government,government,greenhouse,aisi,renamed from AI Safety Institute in 2025; recorded under the old name in snapshots before 2026-09-30
+BlueDot Impact,field-building,nonprofit,ashby,bluedot,
+Kairos,field-building,nonprofit,ashby,kairos-project,added 2026-09-30; runs SPAR and the Pathfinder Fellowship
+Apollo Research,research,company,lever,apolloresearch,became a public benefit corporation in 2026-01; sells the Watcher monitoring product
+Goodfire,research,company,greenhouse,goodfire,interpretability public benefit corporation; roughly a third of its openings are sales and marketing
+Haize Labs,research,company,greenhouse,haizelabs,added 2026-09-30; AI red-teaming and reliability company
+Irregular,research,company,ashby,irregular,added 2026-09-30; frontier AI security lab (formerly Pattern Labs)
+Anthropic,frontier-lab,frontier-lab,greenhouse,anthropic,excluded from headline metric; shown as comparison only
